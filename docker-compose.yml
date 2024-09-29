@@ -1,0 +1,30 @@
+version: '3.3'
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.1
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  vector:
+    image: timberio/vector:latest
+    container_name: vector
+    volumes:
+      - ./vector.toml:/etc/vector/vector.toml
+    command: vector --config /etc/vector/vector.toml
+    depends_on:
+      - elasticsearch
+    links:
+      - elasticsearch
+    ports:
+      - "8686:8686"
+
+volumes:
+  es_data:
+    driver: local
+
