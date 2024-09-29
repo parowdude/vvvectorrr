@@ -15,3 +15,8 @@ This repository contains a Docker setup for running Vector with Elasticsearch. V
    cd vvvectorrr
    docker-compose up
 
+2. add your data file in the data directory called `input.log`
+
+3. Query your data from this endpoint
+- Postman : URL `http://{serverIPHere}:9200/transform-test/_search`
+- curl : `curl -XGET 'http://{serverIPHere}:9200/transform-test/_search'`

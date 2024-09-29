@@ -1,10 +1,8 @@
-data_dir = "/home/pi/Documents/vect"
-
 # =================================
 # 1. Ingestion source
 [sources.fortigate-in]
 type = "file"
-include = [ "input.log" ]
+include = [ "/data/input.log" ]
 read_from = "beginning"
 ignore_checkpoints = true
 
@@ -46,3 +44,15 @@ source = '''
 type = "console"
 inputs = [ "fortigate-transform-main" ]
 encoding.codec = "json"
+
+# 5.2 Elasticsearch sink
+[sinks.storage]
+type = "elasticsearch"
+# inputs = [
+#           "fortigate-transform-auth",
+#           "fortigate-transform-config",
+#           "fortigate-transform-firewall",
+#         ]
+inputs = [ "fortigate-transform-main"]
+endpoints = [ "http://elasticsearch:9200" ]
+bulk.index = "transform-test"
