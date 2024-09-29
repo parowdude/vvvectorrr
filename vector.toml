@@ -1,0 +1,48 @@
+data_dir = "/home/pi/Documents/vect"
+
+# =================================
+# 1. Ingestion source
+[sources.fortigate-in]
+type = "file"
+include = [ "input.log" ]
+read_from = "beginning"
+ignore_checkpoints = true
+
+# 2. Log parsing and initial normalization
+[transforms.fortigate-transform-main]
+inputs = ["fortigate-in"]
+type = "remap"
+drop_on_error = true
+source = '''
+    # Step 1: Parse the raw log to root (".")
+    . = parse_grok!(.message, "%{SYSLOGTIMESTAMP:timestamp} %{IPORHOST:srcip} %{GREEDYDATA:kv_data}")
+
+    # Step 2: Parse the key-value pairs from 'kv_data'
+    keypair = parse_key_value!(.kv_data)
+    . = merge(.,keypair)
+    del(.kv_data)
+
+
+    # Timestamp formatting
+    #."@timestamp" = .timestamp
+    #del(.timestamp)
+
+    ## Type safety
+    .date = string!(.date)
+    .time = string!(.time)
+    .tz = string!(.tz)
+
+    timestamp_str = del(.date) + "T" + del(.time) + del(.tz)
+    ."@timestamp" = parse_timestamp!(timestamp_str, "%Y-%m-%dT%H:%M:%S%z")
+  '''
+
+# [sinks.file]
+# type = "file"
+# inputs = [ "fortigate-transform-main" ]
+# path = "output.log"
+# encoding.codec = "json"
+
+[sinks.console]
+type = "console"
+inputs = [ "fortigate-transform-main" ]
+encoding.codec = "json"
