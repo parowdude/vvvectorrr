@@ -107,7 +107,7 @@ source = '''
     .dstcountry = null
     .dstintf = null
     .dstip = .rawData.dstip
-    .event_details = ("uiz=" + .rawData.ui ?? "") + (" | profile=" + .rawData.profile ?? "")
+    .event_details = ("ui=" + .rawData.ui ?? "") + (" | profile=" + .rawData.profile ?? "")
     .event_group = ""
     .event_id_desc = ("event | " + .rawData.subtype ?? "") + (" | " + .rawData.msg ?? "")
     .event_service = ""
