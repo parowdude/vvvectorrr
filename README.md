@@ -1,6 +1,8 @@
 # Vector and Elasticsearch Docker Setup
-
+<!-- ![image info](./assets/vvveeecctooorrrr.png) -->
 This repository contains a Docker setup for running Vector with Elasticsearch. Vector uses the configuration provided in `vector.toml`.
+
+<img src="./assets/vvveeecctooorrrr.png" alt="VectorAIGenerated" width="400"/>
 
 ## Prerequisites
 
@@ -13,10 +15,15 @@ This repository contains a Docker setup for running Vector with Elasticsearch. V
    ```bash
    git clone https://github.com/parowdude/vvvectorrr.git
    cd vvvectorrr
-   docker-compose up
+2. Add your data file in the `data` directory called `input.log`
 
-2. add your data file in the `data` directory called `input.log`
+3. Start docker (This will start elasticseach as well as the vector instance)
+    ```bash
+      docker-compose up
+4. Query your data from this endpoint
+- Postman : URL `http://{serverIPHere}:9200/siem-auth-firewall-fortigate-fortigate-{datetimehere}/_search`
+- curl : `curl -XGET 'http://{serverIPHere}:9200/siem-auth-firewall-fortigate-fortigate-{datetimehere}/_search'`
+- (The parsed data is also available in output.log)
 
-3. Query your data from this endpoint
-- Postman : URL `http://{serverIPHere}:9200/transform-test/_search`
-- curl : `curl -XGET 'http://{serverIPHere}:9200/transform-test/_search'`
+
+<sub><sup>PS. Naming convention and image inspiration from https://www.youtube.com/watch?v=-6DPo7fXV6I</sup></sub>
