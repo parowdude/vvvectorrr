@@ -16,43 +16,268 @@ source = '''
     . = parse_grok!(.message, "%{SYSLOGTIMESTAMP:timestamp} %{IPORHOST:srcip} %{GREEDYDATA:kv_data}")
 
     # Step 2: Parse the key-value pairs from 'kv_data'
-    keypair = parse_key_value!(.kv_data)
-    . = merge(.,keypair)
+    .rawData = parse_key_value!(.kv_data)
+    #. = merge(.,keypair)
     del(.kv_data)
+    #################################
 
 
-    # Timestamp formatting
+    ### Timestamp formatting #########
     #."@timestamp" = .timestamp
     #del(.timestamp)
 
     ## Type safety
-    .date = string!(.date)
-    .time = string!(.time)
-    .tz = string!(.tz)
+    .date = string!(.rawData.date)
+    .time = string!(.rawData.time)
+    .tz = string!(.rawData.tz)
 
     timestamp_str = del(.date) + "T" + del(.time) + del(.tz)
     ."@timestamp" = parse_timestamp!(timestamp_str, "%Y-%m-%dT%H:%M:%S%z")
+    ## Not sure why it's not liking eventtime
+    #.test = parse_timestamp!(.rawData.eventtime,"%f")
+    #################################
+
+    ## clasify events
+    if .rawData.type == "event" {
+      if .rawData.action == "login" || .rawData.action == "logout" {
+          .siem_type = "auth"
+      } else {
+          .siem_type = "config"
+      }
+    } else if .rawData.type == "traffic"
+    {
+        .siem_type = "firewall"
+    } else
+    {
+      .siem_type = "N/A"
+    }
+
+    # Fields that would be the same for all
+    .siem = true
+    .siem_vendor = "fortigate"
+    .siem_application = "fortigate"
+    .siem_subtype = "firewall"
+    .siem_source = .rawData.devname
+     if (.rawData.level == "information")
+    {
+      .status_type = "INFO"
+    } else if (.rawData.level == "notice")
+    {
+      .status_type = "NOTICE"
+    } else if (.rawData.level == "warning")
+    {
+      .status_type = "WARN"
+    } else if (.rawData.level == "critical")
+    {
+      .status_type = "CRIT"
+    }
+    .event_id = to_int!(slice!(.rawData.logid, 4, 10))
   '''
 
-# [sinks.file]
-# type = "file"
-# inputs = [ "fortigate-transform-main" ]
-# path = "output.log"
-# encoding.codec = "json"
+# =================================
+# 3. ROUTING
+[transforms.fortigate-type-split-route]
+inputs = ["fortigate-transform-main"]
+type = "route"
 
-[sinks.console]
-type = "console"
-inputs = [ "fortigate-transform-main" ]
+[transforms.fortigate-type-split-route.route]
+    siem-fortigate-auth   = '.siem_type == "auth"'
+    siem-fortigate-config   = ' .siem_type == "config"'
+    siem-fortigate-firewall   = '.siem_type == "firewall"'
+# =================================
+
+# =================================
+# 4.1 Authentication log normalization
+[transforms.fortigate-transform-auth]
+inputs = ["fortigate-type-split-route.siem-fortigate-auth"]
+type = "remap"
+# drop_on_error = true
+# reroute_dropped = true
+source = '''
+    # Normalize authentication logs
+    .action = .rawData.action
+    if contains(string!(.rawData.msg), "logged out", case_sensitive: false)
+    {
+      .action_type = "LOGOUT"
+    } else {
+      .action_type = "LOGIN"
+    }
+    .application_name = .rawData.subtype
+    .dst = .rawData.dstip
+    .dstcountry = null
+    .dstintf = null
+    .dstip = .rawData.dstip
+    .event_details = ("uiz=" + .rawData.ui ?? "") + (" | profile=" + .rawData.profile ?? "")
+    .event_group = ""
+    .event_id_desc = ("event | " + .rawData.subtype ?? "") + (" | " + .rawData.msg ?? "")
+    .event_service = ""
+    .event_target = ""
+    .event_type = ""
+    .hostname = ""
+    .mac = ""
+    .policytype = null
+    .resource_details = ""
+    .service = null
+    #.severity = "HIGH"
+    if .rawData.profile == "super_admin"
+    {
+      .severity = "HIGH"
+    } else {
+      .severity = "MEDIUM"
+    }
+    .src = .rawData.srcip
+    .src_country_code = ""
+    .srccountry = null
+    .srcintf = null
+    .srcip = .rawData.srcip
+    .status_code = 0
+    .status_description = ("event | " + .rawData.subtype ?? "" ) + (" | " + .rawData.msg ?? "")
+    .status_reason = ""
+    .status_text = if (.rawData.status == "success") { "SUCCESS" } else { "FAILURE" }
+    .test_route_flow = "auth | auth"
+    .test_subtype_code = "00"
+    .test_type_code = slice!(.rawData.logid, 0, 2)
+    .trust_status = .rawData.profile
+    .url = null
+    .user = .rawData.user
+'''
+
+# 4.2 Configuration log normalization
+[transforms.fortigate-transform-config]
+inputs = ["fortigate-type-split-route.siem-fortigate-config"]
+type = "remap"
+# drop_on_error = true
+# reroute_dropped = true
+source = '''
+    # Normalize configuration logs
+  .action = .rawData.msg
+  .action_type = upcase!(.rawData.action)
+  .ap = null
+  .app = null
+  .application_name = ""
+  .dst = .rawData.user
+  .dstcountry = null
+  .dstintf = null
+  .dstip = ""
+  .event_details = ("cfgobj=" + .rawData.cfgobj ?? "") + (" | ui=" + .rawData.ui ?? "") + (" | cfgpath=" + .rawData.cfgpath ?? "") + (" | cfgattr=" + .rawData.cfgattr ?? "")
+  .event_group = ""
+  .event_id_desc = ("" + .rawData.type ?? "" ) + " | " + ("" + .rawData.subtype ?? "" ) + (" | " + .rawData.msg ?? "") + (" | " + .rawData.logdesc ?? "")
+  .event_service = ""
+  .event_target = .rawData.cfgobj
+  .file_path = .rawData.cfgpath
+  .hostname = ""
+  .mac = ""
+  .policytype = null
+  .service = null
+  if .file_path == "system.admin"
+  {
+    .severity = "HIGH"
+  } else {
+    .severity = "MEDUIM"
+  }
+  .src = .rawData.user
+  .srccountry = null
+  .srcintf = null
+
+  ## Parse regex , should be between brackets
+  reg = parse_regex!(string!(.rawData.ui), r'\((?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\)')
+  .srcip = reg.ip
+  .srcport = null
+  .status_code = 0
+  .status_description = "event | system | " + .rawData.msg ?? ""
+  .status_reason = .rawData.logdesc
+  .status_text = "SUCCESS"
+  .test_route_flow = "auth | config"
+  .test_subtype_code = "00"
+  .test_type_code = "01"
+  .url = null
+  .user = .rawData.user
+'''
+
+# 4.3 Firewall log normalization
+[transforms.fortigate-transform-firewall]
+inputs = ["fortigate-type-split-route.siem-fortigate-firewall"]
+type = "remap"
+#drop_on_error = true
+#reroute_dropped = true
+source = '''
+    .action = .rawData.action
+    #action_type  this can be "ACCEPT", "CONNECTION" , "RESET"
+    etype =  to_int!(slice!(.rawData.logid, 8, 10))
+    if etype == 11 {
+      .action_type = "CONNECTION"
+    } else if etype == 13 {
+      .action_type = "ACCEPT"
+    } else if etype == 14 {
+      .action_type = "RESET"
+    } else {
+      .action_type = "N/A"
+    }
+    .ap = null
+    .application_name = ""
+    .domain = ""
+    .dst = .rawData.dstip
+    .dst_country_code = .rawData.dstcountry
+    .dstintf = .rawData.dstintf
+    .dstip = .rawData.dstip
+    .dstmac = ""
+    .dstport = .rawData.dstport
+    .event_details = ""
+    .event_id_desc = ("" + .rawData.type ?? "" ) + " | " + ("" + .rawData.subtype ?? "" ) + " | " + ("" + .rawData.service ?? "" )
+    .firewall_details = ("devName=" + .rawData.devname ?? "") + (" | vd=" + .rawData.vd ?? "") + (" | policy=" + .rawData.policytype ?? "")
+    .hostname = null
+    .mac = .rawData.srcmac
+    .proto = .rawData.proto
+    .rcvdbyte = .rawData.rcvdbyte
+    .sentbyte = .rawData.sentbyte
+    .severity = "LOW" # Too little sample data to determine severity
+    .src = .rawData.srcip
+    .src_country_code = ""
+    .srcintf = .rawData.srcintf
+    .srcip = .rawData.srcip
+    .srcmac = .rawData.srcmac
+    .srcport = .rawData.srcport
+    .status_code = 0
+    .status_description = ("" + .rawData.type ?? "") + (" | " + .rawData.subtype ?? "" )
+    .status_reason = ""
+    .status_text = "SUCCESS"
+    .test_event_id = etype
+    .test_route_flow = "firewall | firewall"
+    .test_subtype_code = to_int!(slice!(.rawData.logid, 2, 4))
+    .test_type_code = "00" #Not sure what field this is pulled from
+    .url = ""
+    .user = ""
+
+'''
+
+
+[transforms.output]
+inputs = ["fortigate-transform-auth","fortigate-transform-config","fortigate-transform-firewall"]
+type = "remap"
+# drop_on_error = true
+# reroute_dropped = true
+source = '''
+
+    # set fields as necesary
+    .enrich_status = true
+    # Delete raw data , not needed anymore
+    del(.rawData)
+'''
+
+[sinks.file]
+type = "file"
+inputs = [ "output" ]
+path = "/data/output.log"
 encoding.codec = "json"
+
+# [sinks.console]
+# type = "console"
+# inputs = [ "output" ]
+# encoding.codec = "json"
 
 # 5.2 Elasticsearch sink
 [sinks.storage]
 type = "elasticsearch"
-# inputs = [
-#           "fortigate-transform-auth",
-#           "fortigate-transform-config",
-#           "fortigate-transform-firewall",
-#         ]
-inputs = [ "fortigate-transform-main"]
+inputs = [ "output"]
 endpoints = [ "http://elasticsearch:9200" ]
-bulk.index = "transform-test"
+bulk.index = "siem-{{siem_type}}-{{siem_subtype}}-{{siem_vendor}}-{{siem_application}}-%Y%m"
