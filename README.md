@@ -27,7 +27,7 @@ This repository contains a Docker setup for running Vector with Elasticsearch. V
 
 ## Extras
 - There is a `dataChecker.js` that takes an `input` and `original` object variables that can be modified if you want to compare data parsers.\
-This will give output such as `value mismatch: rcvdbyte: 59045 -> 20`  or `Key missing from output object: url`\
+This will give output such as `value mismatch: rcvdbyte: 59045 -> 20`  or `Key missing from output object: url`
 - The docker and vector configs was tested on a Pi Raspberry Pi 4 Model B Rev 1.4 8GB
-
+- Kibana has been commented out in the `docker-compose.yml` to save setup time. This can be re-enabled if visualisation is needed etc.\
 <sub><sup>PS. Naming convention and image inspiration from https://www.youtube.com/watch?v=-6DPo7fXV6I</sup></sub>
