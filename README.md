@@ -21,7 +21,7 @@ This will normalize foritigate logs into more usefull information and store them
 3. Start docker (This will start elasticseach as well as the vector instance)
     ```bash
       sudo docker-compose up
-4. Query your data from this endpoint (date time is in format yearMonth format e.g. `202409`)
+4. Query your data from this endpoint (date time is in format yearMonth e.g. `202409`)
 - Postman : URL `http://{serverIPHere}:9200/siem-auth-firewall-fortigate-fortigate-{datetimehere}/_search`
 - curl : `curl -XGET 'http://{serverIPHere}:9200/siem-auth-firewall-fortigate-fortigate-{datetimehere}/_search'`
 - (The parsed data is also available in output.log)
