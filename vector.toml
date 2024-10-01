@@ -23,18 +23,11 @@ source = '''
 
 
     ### Timestamp formatting #########
+    ## not detailed enough , using event time instead
     #."@timestamp" = .timestamp
-    #del(.timestamp)
+    del(.timestamp)
 
-    ## Type safety
-    .date = string!(.rawData.date)
-    .time = string!(.rawData.time)
-    .tz = string!(.rawData.tz)
-
-    timestamp_str = del(.date) + "T" + del(.time) + del(.tz)
-    ."@timestamp" = parse_timestamp!(timestamp_str, "%Y-%m-%dT%H:%M:%S%z")
-    ## Not sure why it's not liking eventtime
-    #.test = parse_timestamp!(.rawData.eventtime,"%f")
+    ."@timestamp" = from_unix_timestamp!(to_int!(.rawData.eventtime), unit: "nanoseconds")
     #################################
 
     ## clasify events
@@ -213,6 +206,7 @@ source = '''
     } else {
       .action_type = "N/A"
     }
+    del(.event_id)
     .ap = null
     .application_name = ""
     .domain = ""
@@ -228,8 +222,8 @@ source = '''
     .hostname = null
     .mac = .rawData.srcmac
     .proto = .rawData.proto
-    .rcvdbyte = .rawData.rcvdbyte
-    .sentbyte = .rawData.sentbyte
+    .rcvdbyte = to_float!(.rawData.rcvdbyte)
+    .sentbyte = to_float!(.rawData.sentbyte)
     .severity = "LOW" # Too little sample data to determine severity
     .src = .rawData.srcip
     .src_country_code = ""
@@ -243,11 +237,10 @@ source = '''
     .status_text = "SUCCESS"
     .test_event_id = etype
     .test_route_flow = "firewall | firewall"
-    .test_subtype_code = to_int!(slice!(.rawData.logid, 2, 4))
+    .test_subtype_code = slice!(.rawData.logid, 2, 4)
     .test_type_code = "00" #Not sure what field this is pulled from
     .url = ""
     .user = ""
-
 '''
 
 
