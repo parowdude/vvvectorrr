@@ -1,6 +1,7 @@
-# Vector and Elasticsearch Docker Setup
+# Vvvectorrr Fortigate log parser and normalizer
 <!-- ![image info](./assets/vvveeecctooorrrr.png) -->
-This repository contains a Docker setup for running Vector with Elasticsearch. Vector uses the configuration provided in `vector.toml`.
+This repository contains a Docker setup for running Vector with Elasticsearch. Vector uses the configuration provided in `vector.toml`.\
+This will normalize foritigate logs into more usefull information and store them in elaticseach
 
 <img src="./assets/vvveeecctooorrrr.png" alt="VectorAIGenerated" width="400"/>
 
